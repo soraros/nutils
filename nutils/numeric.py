@@ -76,12 +76,13 @@ def contract(A, B, axis=-1):
   B = numpy.asarray(B)
 
   maxdim = max(A.ndim, B.ndim)
-  m = _abc[maxdim-A.ndim:maxdim]
-  n = _abc[maxdim-B.ndim:maxdim]
+  s = _abc[:maxdim]
+  m = s[maxdim-A.ndim:]
+  n = s[maxdim-B.ndim:]
 
-  axes = sorted([normdim(maxdim,axis)] if isinstance(axis,int) else [normdim(maxdim,ax) for ax in axis])
-  o = _abc[:maxdim-len(axes)] if axes == range(maxdim-len(axes), maxdim) \
-    else ''.join(_abc[a+1:b] for a, b in zip([-1]+axes, axes+[maxdim]) if a+1 != b)
+  mask = numpy.ones(maxdim, dtype=bool)
+  mask[axis] = False
+  o = ''.join(c for c, b in zip(s, mask) if b)
 
   return numpy.einsum('{},{}->{}'.format(m,n,o), A, B, optimize=False)
 
