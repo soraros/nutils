@@ -87,21 +87,20 @@ def contract(A, B, axis=-1):
   return numpy.einsum('{},{}->{}'.format(m,n,o), A, B, optimize=False)
 
 def dot(A, B, axis=-1):
-  '''Transform axis of A by contraction with first axis of B and inserting
-     remaining axes. Note: with default axis=-1 this leads to multiplication of
-     vectors and matrices following linear algebra conventions.'''
+  '''Dot product.
+
+  Transform axis of A by contraction with first axis of B and inserting
+  remaining axes. Note: with default axis=-1 this leads to multiplication of
+  vectors and matrices following linear algebra conventions.
+  '''
 
   A = numpy.asarray(A)
   B = numpy.asarray(B)
 
   m = _abc[:A.ndim]
-  x = _abc[A.ndim:A.ndim+B.ndim-1]
-  n = m[axis] + x
-  o = m[:axis] + x
-  if axis != -1:
-    o += m[axis+1:]
+  if axis < 0: axis += A.ndim
 
-  return numpy.einsum('{},{}->{}'.format(m,n,o), A, B, optimize=False)
+  return numpy.einsum('{},{}...->{}...{}'.format(m,m[axis],m[:axis],m[axis+1:]), A, B, optimize=False)
 
 def meshgrid(*args, dtype=None):
   '''Multi-dimensional meshgrid generalisation.
