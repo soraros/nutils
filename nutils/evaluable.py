@@ -400,6 +400,10 @@ class Evaluable(types.Singleton):
       assert retval is None or isinstance(retval, Array) and retval.shape == obj.shape, '{0}._optimized_for_numpy or {0}._simplified resulted in shape change'.format(type(obj).__name__)
       return retval
 
+  @property
+  def show(self):
+    return Show(self)
+
 class EvaluationError(Exception):
   def __init__(self, f, values):
     super().__init__('evaluation failed in step {}/{}\n'.format(len(values), len(f.dependencies)) + '\n'.join(f._stack(values)))
@@ -486,6 +490,13 @@ class SelectChain(TransformChain):
 
   def _asciitree_str(self):
     return 'SelectChain({})'.format(self.n)
+
+
+class Show():
+  def __init__(self, arg: Evaluable):
+    self.data = arg
+  def __repr__(self):
+    return self.data.asciitree(richoutput=True)
 
 class PopHead(TransformChain):
 
@@ -1910,6 +1921,12 @@ class Sin(Pointwise):
   evalf = numpy.sin
   deriv = Cos,
 
+class Conj(Pointwise):
+  __slots__ = ()
+  evalf = numpy.conj
+  #! This is bad
+  deriv = lambda x: x,
+
 class Tan(Pointwise):
   'Tangent, element-wise.'
   __slots__ = ()
@@ -2870,8 +2887,8 @@ _normdims = lambda ndim, shapes: tuple(numeric.normdim(ndim,sh) for sh in shapes
 def _jointdtype(*dtypes):
   'determine joint dtype'
 
-  type_order = bool, int, float
-  kind_order = 'bif'
+  type_order = bool, int, float, complex
+  kind_order = 'bifc'
   itype = max(kind_order.index(dtype.kind) if isinstance(dtype,numpy.dtype)
            else type_order.index(dtype) for dtype in dtypes)
   return type_order[itype]

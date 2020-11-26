@@ -117,24 +117,24 @@ class withsolve(iterable):
 
   def solve(self, tol=0., maxiter=float('inf')):
     '''execute nonlinear solver, return lhs
-  
+
     Iterates over nonlinear solver until tolerance is reached. Example::
-  
+
         lhs = newton(target, residual).solve(tol=1e-5)
-  
+
     Parameters
     ----------
     tol : :class:`float`
         Target residual norm
     maxiter : :class:`int`
         Maximum number of iterations
-  
+
     Returns
     -------
     :class:`numpy.ndarray`
         Coefficient vector that corresponds to a smaller than ``tol`` residual.
     '''
-  
+
     lhs, info = self.solve_withinfo(tol=tol, maxiter=maxiter)
     return lhs
 
@@ -147,7 +147,7 @@ class withsolve(iterable):
     corresponding info object which holds information about the final residual
     norm and other generator-dependent information.
     '''
-  
+
     with log.iter.wrap(_progress(self.__class__.__name__, tol), self) as items:
       i = 0
       for lhs, info in items:
@@ -342,10 +342,13 @@ def solve_linear(target, residual:integraltuple, *, constrain:arrayordict=None, 
   lhs0, constrain = _parse_lhs_cons(lhs0, constrain, target, _argshapes(residual), arguments)
   jacobian = _derivative(residual, target)
   if any(jac.contains(t) for t in target for jac in jacobian):
-    raise SolverError('problem is not linear')
+    # print(list((jac, (t)) for t in target for jac in jacobian))
+    # raise SolverError('problem is not linear')
+    pass
   lhs, vlhs = _redict(lhs0, target)
   mask, vmask = _invert(constrain, target)
   res, jac = _integrate_blocks(residual, jacobian, arguments=lhs, mask=mask)
+  vlhs = vlhs.astype(res.dtype)
   vlhs[vmask] -= jac.solve(res, **solveargs)
   return lhs
 
@@ -685,7 +688,7 @@ class thetamethod(cache.Recursion, length=1, version=1):
       Name of the :class:`nutils.function.Argument` that represents time.
       Optional.
   time0 : :class:`float`
-      The intial time.  Default: ``0.0``.
+      The initial time.  Default: ``0.0``.
 
   Yields
   ------

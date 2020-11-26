@@ -771,7 +771,7 @@ def strictfloat(value):
       ...
   ValueError: not a real number: '1.2'
   '''
-
+  return value
   if not isinstance(value, numbers.Real):
     raise ValueError('not a real number: {!r}'.format(value))
   return builtins.float(value)

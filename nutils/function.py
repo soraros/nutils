@@ -29,10 +29,10 @@ from . import evaluable, numeric, util, expression, types, warnings
 from .transformseq import Transforms
 import builtins, numpy, re, types as builtin_types, itertools, functools, operator, abc, numbers
 
-IntoArray = Union['Array', numpy.ndarray, bool, int, float]
+IntoArray = Union['Array', numpy.ndarray, bool, int, float, complex]
 Shape = Sequence[Union[int, 'Array']]
-DType = Type[Union[bool, int, float]]
-_dtypes = bool, int, float
+DType = Type[Union[bool, int, float, complex]]
+_dtypes = bool, int, float, complex
 
 class Lowerable(Protocol):
   'Protocol for lowering to :class:`nutils.evaluable.Array`.'
@@ -358,7 +358,10 @@ class Array(Lowerable, metaclass=_ArrayMeta):
     return ravel(diagonalize(insertaxis(self, 1, ndims), 1), 0)
 
   def __repr__(self) -> str:
-    return 'Array<{}>'.format(','.join('?' if isinstance(n, Array) else str(n) for n in self.shape))
+    return 'Array<{}>'.format((','.join('?' if isinstance(n, Array) else str(n) for n in self.shape) if self.shape != () else '0'))
+
+  def repr_deep(self) -> str:
+    return 'Array<{}>'.format((','.join(n.__repr__() if isinstance(n, Array) else str(n) for n in self.shape) if self.shape != () else '0'))
 
   @property
   def simplified(self):
@@ -432,6 +435,9 @@ class _Constant(Array):
 
   def __getnewargs__(self):
     return self._value,
+
+  def __repr__(self) -> str:
+    return 'Constant' + super().__repr__()
 
   def prepare_eval(self, **kwargs: Any) -> evaluable.Array:
     return _prepend_points(evaluable.Constant(self._value), **kwargs)
@@ -949,6 +955,9 @@ def sin(__arg: IntoArray) -> Array:
   '''
 
   return _Wrapper.broadcasted_arrays(evaluable.Sin, __arg, min_dtype=float)
+
+def conj(__arg: IntoArray) -> Array:
+  return _Wrapper.broadcasted_arrays(evaluable.Conj, __arg, min_dtype=float)
 
 def tan(__arg: IntoArray) -> Array:
   '''Return the trigonometric tangent of the argument, elementwise.
@@ -3080,6 +3089,10 @@ def _eval_ast(ast, functions):
   elif op == 'neg':
     array, = args
     return -Array.cast(array)
+  elif op == 'cmul':
+    left, right = args
+    print('changed')
+    return getattr(operator, '__mul__')(Array.cast(left), Array.cast(right))
   elif op in ('add', 'sub', 'mul', 'truediv', 'pow'):
     left, right = args
     return getattr(operator, '__{}__'.format(op))(Array.cast(left), Array.cast(right))
@@ -3109,6 +3122,10 @@ def _arctan2_expr(_a: Array, _b: Array) -> Array:
   a = Array.cast(_a)
   b = Array.cast(_b)
   return arctan2(_append_axes(a, b.shape), _prepend_axes(b, a.shape))
+
+
+def cmul(_a: Array, _b: Array) -> Array:
+  return multiply(_a, _b)
 
 class Namespace:
   '''Namespace for :class:`Array` objects supporting assignments with tensor expressions.
@@ -3241,6 +3258,8 @@ class Namespace:
     exp=exp, abs=abs, ln=ln, log=ln, log2=log2, log10=log10, sqrt=sqrt,
     sign=sign, d=d, surfgrad=surfgrad, n=normal,
     sum=_sum_expr, norm2=_norm2_expr, J=_J_expr,
+    conj=conj,
+    # cmul=cmul,
   )
 
   def __init__(self, *, default_geometry_name: str = 'x', fallback_length: Optional[int] = None, functions: Optional[Mapping[str, Callable]] = None, **kwargs: Any) -> None:

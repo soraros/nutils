@@ -26,6 +26,7 @@ accompanying geometry function. Meshes can either be generated on the fly, e.g.
 provided at this point.
 """
 
+from os import error
 from . import topology, function, util, element, numeric, transform, transformseq, warnings, types, cache
 from .elementseq import References
 import numpy, os, itertools, re, math, treelog as log, io, contextlib
@@ -674,6 +675,7 @@ def unitsquare(nelems, etype):
 
     v = numpy.arange(nelems+1, dtype=float)
     coords = numeric.meshgrid(v, v).reshape(2,-1).T
+    coords = numpy.indices((nelems+1,nelems+1), dtype=float).reshape(2, -1).T
     transforms = transformseq.PlainTransforms([(root, transform.Square((c[1:]-c[0]).T, c[0])) for c in coords[simplices]], 2)
     topo = topology.SimplexTopology(simplices, transforms, transforms)
 
