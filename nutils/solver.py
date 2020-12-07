@@ -344,10 +344,10 @@ def solve_linear(target, residual:integraltuple, *, constrain:arrayordict=None, 
   # if not set(target).isdisjoint(_argobjs(jacobian)):
   #   raise SolverError('problem is not linear')
   if any(jac.contains(t) for t in target for jac in jacobian):
-    # print(list((jac, (t)) for t in target for jac in jacobian))
     # raise SolverError('problem is not linear')
     pass
   lhs, vlhs = _redict(lhs0, target, dtype=complex)
+  print('a')
   mask, vmask = _invert(constrain, target)
   res, jac = _integrate_blocks(residual, jacobian, arguments=lhs, mask=mask)
   vlhs[vmask] -= jac.solve(res, **solveargs)
@@ -962,4 +962,19 @@ def _argshapes(integrals):
       raise ValueError('shapes do not match for target {!r}: {} != {}'.format(target, argshapes[target], shape))
   return argshapes
 
+# @functools.lru_cache(128)
+# def _argobjs(funcs):
+#   '''get :class:`evaluable.Argument` dependencies of multiple functions'''
+
+#   argobjs = {}
+#   for func in filter(None, funcs):
+#     print(func._integrands)
+#     for arg in func._integrands:
+#       if isinstance(arg, evaluable.Argument):
+#         if arg._name in argobjs:
+#           if argobjs[arg._name] != arg:
+#             raise ValueError('shape or dtype mismatch for argument {}: {} != {}'.format(arg._name, argobjs[arg._name], arg))
+#         else:
+#           argobjs[arg._name] = arg
+#   return argobjs
 # vim:sw=2:sts=2:et

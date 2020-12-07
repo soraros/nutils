@@ -232,7 +232,7 @@ class Sample(types.Singleton):
     # stored in shared memory using the offsets array for location. Each
     # element has its own location so no locks are required.
 
-    datas = [parallel.shempty(n, dtype=sparse.dtype(funcs[ifunc].shape, vtype=funcs[ifunc].dtype)) for ifunc, n in enumerate(nvals)]
+    datas = [parallel.shempty(n, dtype=sparse.dtype(funcs[ifunc].shape, vtype=complex)) for ifunc, n in enumerate(nvals)]
     trailingdims = [numpy.cumsum([0]+[ind.ndim for ind in index[:0:-1]])[::-1] for index in indices] # prepare index reshapes
 
     with evaluable.Tuple(evaluable.Tuple([value, *index]) for value, index in zip(values, indices)).session(graphviz) as eval, \
