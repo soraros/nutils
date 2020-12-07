@@ -315,7 +315,7 @@ class MedianBased(LineSearch, version=1):
 @single_or_multiple
 @types.apply_annotations
 @cache.function
-def solve_linear(target, residual:integraltuple, *, constrain:arrayordict=None, lhs0:types.frozenarray[types.strictfloat]=None, arguments:argdict={}, **kwargs):
+def solve_linear(target, residual:integraltuple, *, constrain:arrayordict=None, lhs0:types.frozenarray=None, arguments:argdict={}, **kwargs):
   '''solve linear problem
 
   Parameters
@@ -341,14 +341,15 @@ def solve_linear(target, residual:integraltuple, *, constrain:arrayordict=None, 
     raise TypeError('unexpected keyword arguments: {}'.format(', '.join(kwargs)))
   lhs0, constrain = _parse_lhs_cons(lhs0, constrain, target, _argshapes(residual), arguments)
   jacobian = _derivative(residual, target)
+  # if not set(target).isdisjoint(_argobjs(jacobian)):
+  #   raise SolverError('problem is not linear')
   if any(jac.contains(t) for t in target for jac in jacobian):
     # print(list((jac, (t)) for t in target for jac in jacobian))
     # raise SolverError('problem is not linear')
     pass
-  lhs, vlhs = _redict(lhs0, target)
+  lhs, vlhs = _redict(lhs0, target, dtype=complex)
   mask, vmask = _invert(constrain, target)
   res, jac = _integrate_blocks(residual, jacobian, arguments=lhs, mask=mask)
-  vlhs = vlhs.astype(res.dtype)
   vlhs[vmask] -= jac.solve(res, **solveargs)
   return lhs
 
@@ -906,10 +907,10 @@ def _progress(name, tol):
   while True:
     lhs, info = yield (name + ' {:.0f}%').format(100 * numpy.log(resnorm0/max(info.resnorm,tol)) / numpy.log(resnorm0/tol) if tol else 0 if info.resnorm else 100)
 
-def _redict(lhs, targets):
+def _redict(lhs, targets, dtype=float):
   '''copy argument dictionary referencing a newly allocated contiguous array'''
 
-  vlhs = numpy.empty(sum(lhs[target].size for target in targets))
+  vlhs = numpy.empty(sum(lhs[target].size for target in targets), dtype=dtype)
   lhs = lhs.copy()
   offset = 0
   for target in targets:
