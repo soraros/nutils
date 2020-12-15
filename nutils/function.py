@@ -31,8 +31,8 @@ import builtins, numpy, re, types as builtin_types, itertools, functools, operat
 
 IntoArray = Union['Array', numpy.ndarray, bool, int, float]
 Shape = Sequence[Union[int, 'Array']]
-DType = Type[Union[bool, int, float]]
-_dtypes = bool, int, float
+DType = Type[Union[bool, int, float, complex]]
+_dtypes = bool, int, float, complex
 
 class Lowerable(Protocol):
   'Protocol for lowering to :class:`nutils.evaluable.Array`.'
@@ -958,6 +958,9 @@ def abs(__arg: IntoArray) -> Array:
 
   arg = Array.cast(__arg)
   return arg * sign(arg)
+
+def conj(__arg: IntoArray) -> Array:
+  return _Wrapper.broadcasted_arrays(evaluable.Conj, __arg, min_dtype=complex)
 
 def sign(__arg: IntoArray) -> Array:
   '''Return the sign of the argument, elementwise.
@@ -3308,6 +3311,7 @@ class Namespace:
     exp=exp, abs=abs, ln=ln, log=ln, log2=log2, log10=log10, sqrt=sqrt,
     sign=sign, d=d, surfgrad=surfgrad, n=normal,
     sum=_sum_expr, norm2=_norm2_expr, J=_J_expr,
+    conj=conj,
   )
 
   def __init__(self, *, default_geometry_name: str = 'x', fallback_length: Optional[int] = None, functions: Optional[Mapping[str, Callable]] = None, **kwargs: Any) -> None:

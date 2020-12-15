@@ -2195,6 +2195,11 @@ class Absolute(Pointwise):
   __slots__ = ()
   evalf = numpy.absolute
 
+class Conj(Pointwise):
+  __slots__ = ()
+  evalf = numpy.conj
+  deriv = lambda x: x,
+
 class Cos(Pointwise):
   'Cosine, element-wise.'
   __slots__ = ()
@@ -2882,7 +2887,10 @@ class Argument(DerivativeTargetBase):
     else:
       value = numpy.asarray(value)
       assert value.shape == self.shape
-      value = value.astype(self.dtype, casting='safe', copy=False)
+      try:
+        value = value.astype(self.dtype, casting='safe', copy=False)
+      except TypeError:
+        value = value.astype(complex, copy=True)
       return value
 
   def _derivative(self, var, seen):
@@ -3527,6 +3535,7 @@ class LoopConcatenateCombined(Evaluable):
         values.append(numpy.array(index))
         values.extend(op.evalf(*[values[i] for i in indices]) for op, indices in self._serialized)
         for result, result_id, start_id, stop_id in zip(results, self._result_indices, self._start_indices, self._stop_indices):
+          result = result.astype(dtype=values[result_id].dtype, copy=False)
           result[...,int(values[start_id]):int(values[stop_id])] = values[result_id]
     return tuple(results)
 
