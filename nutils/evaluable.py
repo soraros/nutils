@@ -3570,14 +3570,10 @@ def _numpy_bc(*arrays):
   return arrays
 
 def _numpy_align(*arrays):
-  '''reshape arrays according to Numpy's broadcast conventions'''
-  arrays = [asarray(array) for array in arrays]
   if len(arrays) > 1:
-    shape = next((a.shape for a in arrays if a.ndim != 0), ())
-    for i, a in enumerate(arrays):
-      if a.ndim == 0:
-        arrays[i] = _inflate_scalar(a, shape)
-    assert all(shape == a.shape for a in arrays), [a.shape for a in arrays]
+    arrays = [asarray(array) for array in arrays]
+    shape = arrays[0].shape
+    assert all(shape == a.shape for a in arrays[1:]), [a.shape for a in arrays]
   return arrays
 
 def _inflate_scalar(arg, shape):
