@@ -3658,11 +3658,14 @@ def ones(shape, dtype=float):
 def ones_like(arr):
   return ones(arr.shape, arr.dtype)
 
+def const_like(arr, c):
+  return _inflate_scalar(numpy.array(c), arr.shape)
+
 def reciprocal(arg):
-  return power(arg, -1)
+  return power(arg, -ones_like(arg))
 
 def negative(arg):
-  return multiply(arg, -1)
+  return multiply(arg, -ones_like(arg))
 
 def sin(x):
   return Sin(x)
@@ -3692,13 +3695,13 @@ def mod(arg1, arg2):
   return Mod(*_numpy_align(arg1, arg2))
 
 def log2(arg):
-  return ln(arg) / ln(2)
+  return ln(arg) / const_like(arg, ln(2))
 
 def log10(arg):
-  return ln(arg) / ln(10)
+  return ln(arg) / const_like(arg, ln(10))
 
 def sqrt(arg):
-  return power(arg, .5)
+  return power(arg, const_like(arg, .5))
 
 def arctan2(arg1, arg2):
   return ArcTan2(*_numpy_align(arg1, arg2))
@@ -3707,16 +3710,16 @@ def abs(arg):
   return arg * sign(arg)
 
 def sinh(arg):
-  return .5 * (exp(arg) - exp(-arg))
+  return const_like(arg, .5) * (exp(arg) - exp(-arg))
 
 def cosh(arg):
-  return .5 * (exp(arg) + exp(-arg))
+  return const_like(arg, .5) * (exp(arg) + exp(-arg))
 
 def tanh(arg):
-  return 1 - 2. / (exp(2*arg) + 1)
+  return ones_like(arg) - const_like(arg, 2) / (exp(const_like(arg, 2)*arg) + ones_like(arg))
 
 def arctanh(arg):
-  return .5 * (ln(1+arg) - ln(1-arg))
+  return const_like(arg, .5) * (ln(ones_like(arg)+arg) - ln(ones_like(arg)-arg))
 
 def divide(arg1, arg2):
   return multiply(arg1, reciprocal(arg2))
