@@ -510,13 +510,13 @@ class SparseArray(Evaluable):
 
   @types.apply_annotations
   def __init__(self, chunks:types.tuple[types.tuple[asarray]], shape:types.tuple[asarray], dtype:asdtype):
-    self._shape = shape
-    self._dtype = dtype
+    self.shape = shape
+    self.dtype = dtype
     super().__init__(args=[Tuple(map(asarray, shape)), *map(Tuple, chunks)])
 
   def evalf(self, shape, *chunks):
     length = builtins.sum(values.size for *indices, values in chunks)
-    data = numpy.empty((length,), dtype=sparse.dtype(tuple(map(int, shape)), self._dtype))
+    data = numpy.empty((length,), dtype=sparse.dtype(tuple(map(int, shape)), self.dtype))
     start = 0
     for *indices, values in chunks:
       stop = start + values.size
@@ -810,6 +810,8 @@ class Array(Evaluable, metaclass=_ArrayMeta):
 
   __slots__ = '_axes', 'dtype'
   __cache__ = 'blocks', 'assparse', '_assparse', '_as_canonical_length'
+  _dtype = None
+  _dslice = slice(None)
 
   __array_priority__ = 1. # http://stackoverflow.com/questions/7042496/numpy-coercion-problem-for-left-sided-binary-operator/7057530#7057530
 
@@ -817,6 +819,10 @@ class Array(Evaluable, metaclass=_ArrayMeta):
   def __init__(self, args:types.tuple[strictevaluable], shape:types.tuple[as_axis_property], dtype:asdtype):
     self._axes = shape
     self.dtype = dtype
+    if self._dtype is None:
+      assert all(numpy.dtype(dtype) >= numpy.dtype(a.dtype) for a in args[self._dslice] if hasattr(a, 'dtype')), (type(self).__name__, self._dslice, self, args)
+    else:
+      assert type(self)._dtype == dtype
     super().__init__(args=args)
 
   @property
@@ -878,7 +884,7 @@ class Array(Evaluable, metaclass=_ArrayMeta):
   __pow__ = power
   __abs__ = lambda self: abs(self)
   __mod__  = lambda self, other: mod(self, other)
-  __str__ = __repr__ = lambda self: '{}.{}<{}>'.format(type(self).__module__, type(self).__name__, ','.join(map(str, self.shape)) if hasattr(self, 'shape') else '?')
+  __str__ = __repr__ = lambda self: '{}.{}<{}{}>'.format(type(self).__module__, type(self).__name__, numpy.dtype(self.dtype).kind +';' if hasattr(self, 'dtype') else '', ','.join(map(str, self.shape)) if hasattr(self, 'shape') else '?')
 
   sum = sum
   prod = product
@@ -1172,6 +1178,7 @@ class Constant(Array):
 class InsertAxis(Array):
 
   __slots__ = 'func', 'length'
+  _dslice = slice(-1)
 
   @types.apply_annotations
   def __init__(self, func:asarray, length:asarray):
@@ -1984,6 +1991,7 @@ class TakeDiag(Array):
 class Take(Array):
 
   __slots__ = 'func', 'indices'
+  _dslice = slice(-1)
 
   @types.apply_annotations
   def __init__(self, func:asarray, indices:asarray):
@@ -2114,12 +2122,12 @@ class Pointwise(Array):
 
   @types.apply_annotations
   def __init__(self, *args:asarrays):
-    retval = self.evalf(*[numpy.ones((), dtype=arg.dtype) for arg in args])
+    dtype = self.evalf(*[numpy.ones((), dtype=arg.dtype) for arg in args]).dtype
     shapes = set(arg.shape for arg in args)
     assert len(shapes) == 1, 'pointwise arguments have inconsistent shapes'
     shape = tuple(axes[0] if len(set(axes)) == 1 and not isinstance(axes[0], Sparse) else Axis(axes[0].length) for axes in zip(*(arg._axes for arg in args)))
     self.args = args
-    super().__init__(args=args, shape=shape, dtype=retval.dtype)
+    super().__init__(args=args, shape=shape, dtype=dtype)
 
   @classmethod
   def outer(cls, *args):
@@ -2244,16 +2252,19 @@ class ArcTan2(Pointwise):
 
 class Greater(Pointwise):
   __slots__ = ()
+  _dtype = bool
   evalf = numpy.greater
   deriv = (lambda a, b: Zeros(a.shape, dtype=int),) * 2
 
 class Equal(Pointwise):
   __slots__ = ()
+  _dtype = bool
   evalf = numpy.equal
   deriv = (lambda a, b: Zeros(a.shape, dtype=int),) * 2
 
 class Less(Pointwise):
   __slots__ = ()
+  _dtype = bool
   evalf = numpy.less
   deriv = (lambda a, b: Zeros(a.shape, dtype=int),) * 2
 
@@ -2269,6 +2280,7 @@ class Maximum(Pointwise):
 
 class Int(Pointwise):
   __slots__ = ()
+  _dtype = int
   evalf = staticmethod(lambda a: a.astype(int))
   deriv = lambda a: Zeros(a.shape, int),
 
@@ -2318,6 +2330,7 @@ class Sampled(Array):
   '''
 
   __slots__ = ()
+  _dtype = int
 
   @types.apply_annotations
   def __init__(self, points:asarray, expect:asarray):
@@ -2416,6 +2429,7 @@ class Zeros(Array):
 
   __slots__ = ()
   __cache__ = '_assparse'
+  _dslice = slice(0)
 
   @types.apply_annotations
   def __init__(self, shape:asshape, dtype:asdtype):
@@ -2488,6 +2502,7 @@ class Inflate(Array):
 
   __slots__ = 'func', 'dofmap', 'length', 'warn'
   __cache__ = '_assparse'
+  _dslice = slice(-2)
 
   @types.apply_annotations
   def __init__(self, func:asarray, dofmap:asarray, length:asarray):
@@ -3006,6 +3021,7 @@ class Ravel(Array):
 class Unravel(Array):
 
   __slots__ = 'func'
+  _dslice = slice(-2)
 
   @types.apply_annotations
   def __init__(self, func:asarray, sh1:as_canonical_length, sh2:as_canonical_length):
@@ -3271,6 +3287,7 @@ class NormDim(Array):
       return Constant(self.eval())
 
 class LoopSum(Array):
+  _dslice = slice(0)
 
   @types.apply_annotations
   def __init__(self, func: asarray, index:types.strict[Argument], length: asarray):
@@ -3558,11 +3575,9 @@ _normdims = lambda ndim, shapes: tuple(numeric.normdim(ndim,sh) for sh in shapes
 def _jointdtype(*dtypes):
   'determine joint dtype'
 
-  type_order = bool, int, float, complex
-  kind_order = 'bifc'
-  itype = max(kind_order.index(dtype.kind) if isinstance(dtype,numpy.dtype)
-           else type_order.index(dtype) for dtype in dtypes)
-  return type_order[itype]
+  kind_map = {'b': bool, 'i': int, 'f': float, 'c': complex}
+  kind = max(map(numpy.dtype, dtypes)).kind
+  return kind_map[kind]
 
 def _gatherblocks(blocks):
   return tuple((ind, util.sum(funcs)) for ind, funcs in util.gather(blocks))
