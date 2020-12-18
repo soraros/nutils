@@ -923,7 +923,7 @@ class Array(Evaluable, metaclass=_ArrayMeta):
     if self in cache:
       return cache[self]
     args = tuple(arg._node(cache, subgraph, times) for arg in self._Evaluable__args)
-    label = '\n'.join(filter(None, (type(self).__name__, self._node_details, ','.join(map(repr, self._axes)))))
+    label = '\n'.join(filter(None, (type(self).__name__, self._node_details, self.dtype.__name__, ','.join(map(repr, self._axes)))))
     cache[self] = node = RegularNode(label, args, {}, (type(self).__name__, times[self]), subgraph)
     return node
 
@@ -2860,7 +2860,7 @@ class Argument(DerivativeTargetBase):
     if self in cache:
       return cache[self]
     else:
-      label = '\n'.join(filter(None, (type(self).__name__, self._name, ','.join(map(repr, self._axes)))))
+      label = '\n'.join(filter(None, (type(self).__name__, self._name, self.dtype.__name__, ','.join(map(repr, self._axes)))))
       cache[self] = node = DuplicatedLeafNode(label, (type(self).__name__, times[self]))
       return node
 
