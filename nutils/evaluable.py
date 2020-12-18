@@ -297,9 +297,9 @@ class Evaluable(types.Singleton):
 
   @property
   def _node_details(self):
-    return ''
+    return numpy.dtype(self.dtype).name if hasattr(self, 'dtype') else ''
 
-  def asciitree(self, richoutput=False):
+  def asciitree(self, richoutput=True):
     'string representation'
 
     return self._node({}, None, collections.defaultdict(_Stats)).generate_asciitree(richoutput)
