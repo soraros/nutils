@@ -404,6 +404,15 @@ def eval_integrals_sparse(*integrals: types.tuple, **arguments: argdict):
   results : :class:`tuple` of arrays and/or :class:`nutils.matrix.Matrix` objects.
   '''
 
+  # it = integrals[0]
+  # subit = tuple(it.func.func.funcs)[1]
+  # # print(tuple(subit)[1])
+  # print(subit.dtype)
+  # print('here>>>>>')
+  # print(subit.asciitree())
+  # print(it.asciitree())
+  # print(it.simplified.asciitree())
+  # it.simplified.eval(**arguments)
   integrals = tuple(integral.as_evaluable_array().assparse for integral in integrals)
   with evaluable.Tuple(tuple(integrals)).optimized_for_numpy.session(graphviz=graphviz) as eval:
     return eval(**arguments)
@@ -427,6 +436,7 @@ class _Integral(function.Array):
   def __init__(self, integrand: function.Array, sample: Sample) -> None:
     self._integrand = integrand
     self._sample = sample
+    # print('good', integrand.dtype)
     super().__init__(shape=integrand.shape, dtype=float if integrand.dtype in (bool, int) else integrand.dtype)
 
   def lower(self, *, transform_chains=None, coordinates=None, **kwargs) -> evaluable.Array:

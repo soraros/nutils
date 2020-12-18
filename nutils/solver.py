@@ -795,10 +795,14 @@ def optimize(target, functional:evaluable.asarray, *, tol:types.strictfloat=0., 
   if kwargs:
     raise TypeError('unexpected keyword arguments: {}'.format(', '.join(kwargs)))
   argobjs = _argobjs((functional,))
+  print(argobjs, target)
   if any(t not in argobjs for t in target):
     if not droptol:
       raise ValueError('target {} does not occur in integrand; consider setting droptol>0'.format(', '.join(t for t in target if t not in argobjs)))
+    target = set(target).intersection(argobjs)
+    print('1', target)
     target = [t for t in target if t in argobjs]
+    print('2', target)
     if not target:
       return {}
   residual = _derivative((functional,), target)
@@ -807,6 +811,7 @@ def optimize(target, functional:evaluable.asarray, *, tol:types.strictfloat=0., 
   mask, vmask = _invert(constrain, target)
   lhs, vlhs = _redict(lhs0, target)
   val, res, jac = _integrate_blocks(functional, residual, jacobian, arguments=lhs, mask=mask)
+  print('vrj', val, res, jac)
   if droptol is not None:
     supp = jac.rowsupp(droptol)
     res = res[supp]
@@ -895,7 +900,9 @@ def _derivative(residual, target, jacobian=None):
     jacobian = tuple(evaluable.derivative(res, argobjs[t]).simplified for res in residual for t in target)
   elif len(jacobian) != len(residual) * len(target):
     raise ValueError('jacobian has incorrect length')
-  elif any(jacobian[i*len(target)+j].shape != res.shape + argobjs[t].shape for i, res in enumerate(residual) for j, t in enumerate(target)):
+  elif any(jacobian[i*len(target)+j].shape != res.shape + argobjs[t].shape
+           for i, res in enumerate(residual)
+           for j, t in enumerate(target)):
     raise ValueError('jacobian has incorrect shape')
   return jacobian
 
@@ -944,7 +951,12 @@ def _integrate_blocks(*blocks, arguments, mask):
   *scalars, residuals, jacobians = blocks
   assert len(residuals) == len(mask)
   assert len(jacobians) == len(mask)**2
-  data = iter(sample.eval_integrals_sparse(*scalars, *residuals, *jacobians, **arguments))
+  data = iter(sample.eval_integrals_sparse(
+    *scalars,
+    *residuals,
+    *jacobians,
+    **arguments))
+  print(0)
   nrg = [sparse.toarray(next(data)) for _ in range(len(scalars))]
   res = [sparse.take(next(data), [m]) for m in mask]
   jac = [[sparse.take(next(data), [mi, mj]) for mj in mask] for mi in mask]
@@ -955,6 +967,7 @@ def _argobjs(funcs):
   '''get :class:`evaluable.Argument` dependencies of multiple functions'''
 
   argobjs = {}
+  # print('funcs', funcs)
   for func in filter(None, funcs):
     for arg in func.arguments:
       if isinstance(arg, evaluable.Argument):
