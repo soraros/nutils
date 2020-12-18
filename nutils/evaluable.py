@@ -521,6 +521,7 @@ class SparseArray(Evaluable):
     for *indices, values in chunks:
       stop = start + values.size
       d = data[start:stop].reshape(values.shape)
+      if d.dtype != values.dtype: print((d['value'].dtype, values.dtype))
       d['value'] = values
       for idim, ii in enumerate(indices):
         d['index']['i'+str(idim)] = ii
@@ -758,8 +759,33 @@ if debug_flags.sparse:
       return chunks
     return _assparse
 
-  class _ArrayMeta(_ArrayMeta):
+  def _dtype_checker(orig):
+    @functools.wraps(orig)
+    def wrapped(self, *args, **kwargs):
+      s = ['self', self, '\n in:'] if hasattr(self, 'dtype') else ['self in:']
+      for a in args:
+        if isinstance(a, tuple):
+          s.append('list')
+          s.extend(numpy.dtype(x.dtype) for x in a if hasattr(x, 'dtype'))
+        elif hasattr(a, 'dtype'):
+          s.extend(['\n  arg', numpy.dtype(a.dtype)])
+      ans = orig(self, *args, **kwargs)
+      s.extend(['\n out', ans.dtype])
+      if hasattr(self, 'dtype') and any(numpy.dtype(self.dtype) < t for t in s if isinstance(t, numpy.dtype)):
+        print('\n{}\n'.format(' '.join(map(str, s))))
+      return ans
+    return wrapped
+
+  def _dtype_checker(orig):
+    @functools.wraps(orig)
+    def wrapped(self, *args, **kwargs):
+      return orig(self, *args, **kwargs)
+    return wrapped
+
+  class _ArrayMeta(type(Evaluable)):
     def __new__(mcls, name, bases, namespace):
+      # if 'evalf' in namespace:
+      #   namespace['evalf'] = _dtype_checker(namespace['evalf'])
       if '_assparse' in namespace:
         namespace['_assparse'] = _chunked_assparse_checker(namespace['_assparse'])
       return super().__new__(mcls, name, bases, namespace)
@@ -2084,6 +2110,7 @@ class Power(Array):
       p = self.power.eval()
       p_decr = p - (p!=0)
       return multiply(p, power(self.func, p_decr))[ext] * derivative(self.func, var, seen)
+    if self.func.isconstant: print('GOOD')
     # self = func**power
     # ln self = power * ln func
     # self` / self = power` * ln func + power * func` / func
@@ -2414,6 +2441,7 @@ class ArrayFromTuple(Array):
   def __init__(self, arrays:strictevaluable, index:types.strictint, shape:asshape, dtype:asdtype):
     self.arrays = arrays
     self.index = index
+    # dtype = _jointdtype(*(a.dtype for a in arrays))
     super().__init__(args=[arrays], shape=shape, dtype=dtype)
 
   def evalf(self, arrays):
