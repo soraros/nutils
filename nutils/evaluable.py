@@ -51,6 +51,7 @@ else:
 from . import util, types, numeric, cache, transform, expression, warnings, parallel, sparse
 from ._graph import Node, RegularNode, DuplicatedLeafNode, InvisibleNode, Subgraph
 import numpy, sys, itertools, functools, operator, inspect, numbers, builtins, re, types as builtin_types, abc, collections.abc, math, treelog as log, weakref, time, contextlib, subprocess
+from .types import dtypes
 _ = numpy.newaxis
 
 isevaluable = lambda arg: isinstance(arg, Evaluable)
@@ -62,8 +63,6 @@ def strictevaluable(value):
 
 def simplified(value):
   return strictevaluable(value).simplified
-
-asdtype = lambda arg: arg if any(arg is dtype for dtype in (bool, int, float, complex)) else {'f': float, 'i': int, 'b': bool, 'c': complex}[numpy.dtype(arg).kind]
 
 def asarray(arg):
   if hasattr(arg, 'as_evaluable_array'):
