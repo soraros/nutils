@@ -73,6 +73,7 @@ def asarray(arg):
     return Constant(arg)
 
 asarrays = types.tuple[asarray]
+asdtype = dtypes.asdtype
 
 def as_canonical_length(value):
   if isarray(value):
@@ -1578,7 +1579,7 @@ class Multiply(Array):
        else axis1 if isinstance(axis1, Sparse)
        else axis2 if isinstance(axis2, Sparse)
        else Axis(axis1.length) for axis1, axis2 in zip(func1._axes, func2._axes)]
-    super().__init__(args=self.funcs, shape=axes, dtype=_jointdtype(func1.dtype,func2.dtype))
+    super().__init__(args=self.funcs, shape=axes, dtype=dtypes.join(func1.dtype, func2.dtype))
 
   def _simplified(self):
     func1, func2 = self.funcs
@@ -1745,7 +1746,7 @@ class Add(Array):
       mask = func1._axes[i].mask | func2._axes[i].mask # axis positions that are certainly filled
       if not mask.all():
         axes[i] = Sparse(axes[i].length, mask)
-    super().__init__(args=self.funcs, shape=axes, dtype=_jointdtype(func1.dtype,func2.dtype))
+    super().__init__(args=self.funcs, shape=axes, dtype=dtypes.join(func1.dtype,func2.dtype))
 
   def _simplified(self):
     func1, func2 = self.funcs
@@ -1825,7 +1826,7 @@ class Einsum(Array):
     self.out_idx = out_idx
     self._einsumfmt = ','.join(''.join(chr(97+i) for i in idx) for idx in args_idx) + '->' + ''.join(chr(97+i) for i in out_idx)
     self._has_summed_axes = len(lengths) > len(out_idx)
-    super().__init__(args=self.args, shape=shape, dtype=_jointdtype(*(arg.dtype for arg in args)))
+    super().__init__(args=self.args, shape=shape, dtype=dtypes.join(*(arg.dtype for arg in args)))
 
   def evalf(self, *args):
     if self._has_summed_axes:
@@ -3180,7 +3181,7 @@ class Choose(Array):
   def __init__(self, index:asarray, choices:types.tuple[asarray]):
     if index.dtype != int:
       raise Exception('index must be integer valued')
-    dtype = _jointdtype(*[choice.dtype for choice in choices])
+    dtype = dtypes.join(*[choice.dtype for choice in choices])
     shape = index.shape
     if not all(choice.shape == shape for choice in choices):
       raise Exception('shapes vary')
@@ -3527,15 +3528,6 @@ class LoopConcatenateCombined(Evaluable):
 
 _ascending = lambda arg: numpy.greater(numpy.diff(arg), 0).all()
 _normdims = lambda ndim, shapes: tuple(numeric.normdim(ndim,sh) for sh in shapes)
-
-def _jointdtype(*dtypes):
-  'determine joint dtype'
-
-  type_order = bool, int, float, complex
-  kind_order = 'bifc'
-  itype = max(kind_order.index(dtype.kind) if isinstance(dtype,numpy.dtype)
-           else type_order.index(dtype) for dtype in dtypes)
-  return type_order[itype]
 
 def _gatherblocks(blocks):
   return tuple((ind, util.sum(funcs)) for ind, funcs in util.gather(blocks))

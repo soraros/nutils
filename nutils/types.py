@@ -1361,12 +1361,18 @@ class c_array(metaclass=_c_arraymeta):
   '''
 
 class dtypes:
-  _dtypes = bool, int, float, complex
-  lt = lambda t1, t2: numpy.dtype(t1).__lt__(t2)
+  _dkind_map = {'f': float, 'i': int, 'b': bool, 'c': complex}
   le = lambda t1, t2: numpy.dtype(t1).__le__(t2)
-  max = lambda ts: max(map(numpy.dtype, ts))
-  asdtype = lambda arg: arg if any(arg is dtype for dtype in (bool, int, float, complex)) else {'f': float, 'i': int, 'b': bool, 'c': complex}[numpy.dtype(arg).kind]
-
+  lt = lambda t1, t2: numpy.dtype(t1).__lt__(t2)
+  ge = lambda t1, t2: numpy.dtype(t1).__ge__(t2)
+  gt = lambda t1, t2: numpy.dtype(t1).__gt__(t2)
+  _max = lambda *ts: max(map(numpy.dtype, ts))
+  @classmethod
+  def asdtype(cls, arg):
+    return cls._dkind_map[numpy.dtype(arg).kind]
+  @classmethod
+  def join(cls, *ts):
+    return cls.asdtype(cls._max(*ts))
 
 class attributes:
   '''

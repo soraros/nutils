@@ -26,13 +26,13 @@ else:
 
 from typing import Tuple, Union, Type, Callable, Sequence, Any, Optional, Iterator, Dict, Mapping, overload, List, Set
 from . import evaluable, numeric, util, expression, types, warnings
+from .types import dtypes
 from .transformseq import Transforms
 import builtins, numpy, re, types as builtin_types, itertools, functools, operator, abc, numbers
 
 IntoArray = Union['Array', numpy.ndarray, bool, int, float]
 Shape = Sequence[Union[int, 'Array']]
 DType = Type[Union[bool, int, float]]
-_dtypes = bool, int, float
 
 class Lowerable(Protocol):
   'Protocol for lowering to :class:`nutils.evaluable.Array`.'
@@ -106,7 +106,7 @@ class Array(Lowerable, metaclass=_ArrayMeta):
       value = stack(value, axis=0)
     else:
       raise ValueError('cannot convert {}.{} to Array'.format(type(value).__module__, type(value).__qualname__))
-    if dtype is not None and _dtypes.index(value.dtype) > _dtypes.index(dtype):
+    if dtype is not None and dtypes.gt(value.dtype, dtype):
       raise ValueError('expected an array with dtype `{}` but got `{}`'.format(dtype.__name__, value.dtype.__name__))
     if ndim is not None and value.ndim != ndim:
       raise ValueError('expected an array with dimension `{}` but got `{}`'.format(ndim, value.ndim))
@@ -456,7 +456,7 @@ class _Wrapper(Array):
   def broadcasted_arrays(cls, lower: Callable[..., evaluable.Array], *args: IntoArray, min_dtype: Optional[DType] = None, force_dtype: Optional[DType] = None) -> '_Wrapper':
     broadcasted, shape, dtype = _broadcast(*args)
     assert not min_dtype or not force_dtype
-    if min_dtype and (_dtypes.index(dtype) < _dtypes.index(min_dtype)):
+    if min_dtype and dtypes.ge(dtype, min_dtype):
       dtype = min_dtype
     if force_dtype:
       dtype = force_dtype
@@ -730,7 +730,7 @@ def _broadcast(*args_: IntoArray) -> Tuple[Tuple[Array, ...], Shape, DType]:
         arg = repeat(arg, n, i)
     arg = _prepend_axes(arg, shape[:ndim-arg.ndim])
     broadcasted.append(arg)
-  return tuple(broadcasted), shape, evaluable._jointdtype(*(arg.dtype for arg in args))
+  return tuple(broadcasted), shape, dtypes.join(*(arg.dtype for arg in args))
 
 # CONSTRUCTORS
 
