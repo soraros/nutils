@@ -1112,7 +1112,7 @@ class Constant(Array):
   def __init__(self, value:types.frozenarray):
     self.value = value
     print(asdtype(value.dtype))
-    super().__init__(args=[], shape=value.shape, dtype=asdtype(value.dtype))
+    super().__init__(args=[], shape=value.shape, dtype=value.dtype)
 
   def _simplified(self):
     if not self.value.any():
@@ -3591,10 +3591,9 @@ _normdims = lambda ndim, shapes: tuple(numeric.normdim(ndim,sh) for sh in shapes
 
 def _jointdtype(*dtypes):
   'determine joint dtype'
-
-  kind_map = {'b': bool, 'i': int, 'f': float, 'c': complex}
-  kind = max(map(numpy.dtype, dtypes)).kind
-  return kind_map[kind]
+  ts = (bool, int, float, complex)
+  assert set(dtypes).issubset(ts), 'unsupported dtype'
+  return ts[max(ts.index(t) for t in dtypes)]
 
 def _gatherblocks(blocks):
   return tuple((ind, util.sum(funcs)) for ind, funcs in util.gather(blocks))
