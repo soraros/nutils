@@ -710,6 +710,7 @@ class asciitree(TestCase):
   def test_loop_concatenate(self):
     i = evaluable.Argument('i', (), int)
     f = evaluable.loop_concatenate(evaluable.InsertAxis(i, 1), i, evaluable.Constant(2))
+    self.maxDiff = None
     self.assertEqual(f.asciitree(richoutput=True),
                      'SUBGRAPHS\n'
                      'A\n'
@@ -737,6 +738,7 @@ class asciitree(TestCase):
   def test_loop_concatenatecombined(self):
     i = evaluable.Argument('i', (), int)
     f, = evaluable.loop_concatenate_combined([evaluable.InsertAxis(i, 1)], i, evaluable.Constant(2))
+    self.maxDiff = None
     self.assertEqual(f.asciitree(richoutput=True),
                      'SUBGRAPHS\n'
                      'A\n'
