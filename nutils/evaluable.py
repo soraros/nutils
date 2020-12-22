@@ -780,10 +780,17 @@ if __debug__:
       return orig(self, *args, **kwargs)
     return wrapped
 
+  def _evalf_checker(orig):
+    @functools.wraps(orig)
+    def evalf(*args, **kwargs):
+      return orig(*args, **kwargs)
+    return staticmethod(evalf) if isinstance(orig, numpy.ufunc) else evalf
+
+
   class _ArrayMeta(type(Evaluable)):
     def __new__(mcls, name, bases, namespace):
       if 'evalf' in namespace:
-        namespace['evalf'] = _dtype_checker(namespace['evalf'])
+        namespace['evalf'] = _evalf_checker(namespace['evalf'])
       if '_assparse' in namespace:
         namespace['_assparse'] = _chunked_assparse_checker(namespace['_assparse'])
       return super().__new__(mcls, name, bases, namespace)
