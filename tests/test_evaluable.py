@@ -837,6 +837,8 @@ class combine_loop_concatenates(TestCase):
     L1 = evaluable.LoopConcatenateCombined(((evaluable.InsertAxis(i, 1), i, i+1, 3),), i, 3)
     L2 = evaluable.LoopConcatenateCombined(((evaluable.InsertAxis(j, 1), j, j+1, 3),), j, 3)
     desired = evaluable.Tuple((evaluable.ArrayFromTuple(L1, 0, (3,), int), evaluable.ArrayFromTuple(L2, 0, (3,), int)))
+    self.maxDiff = None
+    self.assertEqual(actual.asciitree(richoutput=True), 'a'+desired.asciitree(richoutput=True))
     self.assertEqual(actual, desired)
 
   def test_nested_invariant(self):

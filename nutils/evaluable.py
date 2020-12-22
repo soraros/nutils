@@ -63,7 +63,7 @@ def strictevaluable(value):
 def simplified(value):
   return strictevaluable(value).simplified
 
-asdtype = lambda arg: arg if any(arg is dtype for dtype in (bool, int, float, complex)) else {'f': float, 'i': int, 'b': bool, 'c': complex}[numpy.dtype(arg).kind]
+asdtype = lambda arg: arg if (arg in (bool, int, float, complex)) or arg is None else {'f': float, 'i': int, 'b': bool, 'c': complex}[numpy.dtype(arg).kind]
 
 def asarray(arg):
   if hasattr(arg, 'as_evaluable_array'):
@@ -796,13 +796,18 @@ class Array(Evaluable, metaclass=_ArrayMeta):
   __array_priority__ = 1. # http://stackoverflow.com/questions/7042496/numpy-coercion-problem-for-left-sided-binary-operator/7057530#7057530
 
   @types.apply_annotations
-  def __init__(self, args:types.tuple[strictevaluable], shape:types.tuple[as_axis_property], dtype:asdtype):
+  def __init__(self, args:types.tuple[strictevaluable], shape:types.tuple[as_axis_property], dtype:asdtype = None):
     self._axes = shape
+    if dtype is None:
+      if self._dtype is not None:
+        dtype = self._dtype
+      else:
+        dtype = asdtype(numpy.find_common_type([], (a.dtype for a in args[self._dslice] if hasattr(a, 'dtype'))))
     self.dtype = dtype
-    if self._dtype is None:
-      assert all(numpy.dtype(dtype) >= numpy.dtype(a.dtype) for a in args[self._dslice] if hasattr(a, 'dtype')), (type(self).__name__, self._dslice, self, args)
-    else:
-      assert type(self)._dtype == dtype
+    # if self._dtype is None:
+    #   assert all(numpy.dtype(dtype) >= numpy.dtype(a.dtype) for a in args[self._dslice] if hasattr(a, 'dtype')), (type(self).__name__, self._dslice, self, args)
+    if self._dtype is not None:
+      assert type(self)._dtype == dtype, self
     super().__init__(args=args)
 
   @property
@@ -996,9 +1001,10 @@ class NPoints(Array):
   'The length of the points axis.'
 
   __slots__ = ()
+  _dtype = int
 
   def __init__(self):
-    super().__init__(args=[EVALARGS], shape=(), dtype=int)
+    super().__init__(args=[EVALARGS], shape=())
 
   def evalf(self, evalargs):
     points = evalargs['_points'].coords
@@ -1007,9 +1013,10 @@ class NPoints(Array):
 class Points(Array):
 
   __slots__ = ()
+  _dtype = float
 
   def __init__(self, npoints, ndim):
-    super().__init__(args=[EVALARGS], shape=(npoints, ndim), dtype=float)
+    super().__init__(args=[EVALARGS], shape=(npoints, ndim))
 
   def evalf(self, evalargs):
     points = evalargs['_points'].coords
@@ -1019,9 +1026,10 @@ class Points(Array):
 class Weights(Array):
 
   __slots__ = ()
+  _dtype = float
 
   def __init__(self, npoints):
-    super().__init__(args=[EVALARGS], shape=(npoints,), dtype=float)
+    super().__init__(args=[EVALARGS], shape=(npoints,))
 
   def evalf(self, evalargs):
     weights = evalargs['_points'].weights
@@ -1032,12 +1040,13 @@ class Normal(Array):
   'normal'
 
   __slots__ = 'lgrad',
+  _dtype = float
 
   @types.apply_annotations
   def __init__(self, lgrad:asarray):
     assert lgrad.ndim >= 2 and lgrad.shape[-2] == lgrad.shape[-1]
     self.lgrad = lgrad
-    super().__init__(args=[lgrad], shape=lgrad.shape[:-1], dtype=float)
+    super().__init__(args=[lgrad], shape=lgrad.shape[:-1])
 
   def evalf(self, lgrad):
     n = lgrad[...,-1]
@@ -2406,7 +2415,7 @@ class Zeros(Array):
   _dslice = slice(0)
 
   @types.apply_annotations
-  def __init__(self, shape:asshape, dtype:asdtype):
+  def __init__(self, shape:asshape, dtype:asdtype = None):
     super().__init__(args=[asarray(sh) for sh in shape], shape=map(Sparse, shape), dtype=dtype)
 
   def evalf(self, *shape):
@@ -3046,8 +3055,8 @@ class Range(Array):
 
   @types.apply_annotations
   def __init__(self, length:asarray, offset:asarray=Zeros((), int)):
-    assert length.ndim == 0 and length.dtype == int
-    assert offset.ndim == 0 and offset.dtype == int
+    assert length.ndim == 0 and length.dtype == int, length
+    assert offset.ndim == 0 and offset.dtype == int, offset
     self.length = length
     self.offset = offset
     super().__init__(args=[length, offset], shape=[length], dtype=int)
