@@ -757,8 +757,33 @@ if __debug__:
       return chunks
     return _assparse
 
+  def _dtype_checker(orig):
+    @functools.wraps(orig)
+    def wrapped(self, *args, **kwargs):
+      s = ['self', self, '\n in:'] if hasattr(self, 'dtype') else ['self in:']
+      for a in args:
+        if isinstance(a, tuple):
+          s.append('list')
+          s.extend(numpy.dtype(x.dtype) for x in a if hasattr(x, 'dtype'))
+        elif hasattr(a, 'dtype'):
+          s.extend(['\n  arg', numpy.dtype(a.dtype)])
+      ans = orig(self, *args, **kwargs)
+      s.extend(['\n out', ans.dtype])
+      if hasattr(self, 'dtype') and any(numpy.dtype(self.dtype) < t for t in s if isinstance(t, numpy.dtype)):
+        print('\n{}\n'.format(' '.join(map(str, s))))
+      return ans
+    return wrapped
+
+  def _dtype_checker(orig):
+    @functools.wraps(orig)
+    def wrapped(self, *args, **kwargs):
+      return orig(self, *args, **kwargs)
+    return wrapped
+
   class _ArrayMeta(type(Evaluable)):
     def __new__(mcls, name, bases, namespace):
+      if 'evalf' in namespace:
+        namespace['evalf'] = _dtype_checker(namespace['evalf'])
       if '_assparse' in namespace:
         namespace['_assparse'] = _chunked_assparse_checker(namespace['_assparse'])
       return super().__new__(mcls, name, bases, namespace)
@@ -1079,7 +1104,8 @@ class Constant(Array):
   @types.apply_annotations
   def __init__(self, value:types.frozenarray):
     self.value = value
-    super().__init__(args=[], shape=value.shape, dtype=value.dtype)
+    print(asdtype(value.dtype))
+    super().__init__(args=[], shape=value.shape, dtype=asdtype(value.dtype))
 
   def _simplified(self):
     if not self.value.any():
@@ -2269,7 +2295,7 @@ class Maximum(Pointwise):
 class Int(Pointwise):
   __slots__ = ()
   _dtype = int
-  evalf = staticmethod(lambda a: a.astype(int))
+  evalf = lambda self, a: a.astype(int)
   deriv = lambda a: Zeros(a.shape, int),
 
 class Sign(Array):
@@ -2387,6 +2413,7 @@ class Eig(Evaluable):
 class ArrayFromTuple(Array):
 
   __slots__ = 'arrays', 'index'
+  _dslice = slice(0)
 
   @types.apply_annotations
   def __init__(self, arrays:strictevaluable, index:types.strictint, shape:asshape, dtype:asdtype):
