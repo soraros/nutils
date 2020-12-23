@@ -2045,7 +2045,8 @@ class Power(Array):
     assert func.shape == power.shape
     self.func = func
     self.power = power
-    super().__init__(args=[func,power], shape=func.shape, dtype=float)
+    dtype = float if func.dtype == power.dtype == int else _jointdtype(func.dtype, power.dtype)
+    super().__init__(args=[func,power], shape=func.shape, dtype=dtype)
 
   def _simplified(self):
     if iszero(self.power):
