@@ -111,6 +111,8 @@ jobs:
           mkdir testenv
           cp -r examples docs tests .coveragerc testenv
           cd testenv
+          export NUTILS_DEBUG='all'
+          python -um nutils.debug_flags
           python -um coverage run -m unittest -bq
       - name: Post-process coverage
         run: |
