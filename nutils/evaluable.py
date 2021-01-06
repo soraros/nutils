@@ -3691,6 +3691,9 @@ def arctan(x):
 def exp(x):
   return Exp(x)
 
+def log(x):
+  return Log(x)
+
 def ln(x):
   return Log(x)
 

@@ -37,7 +37,7 @@ _dtypes = bool, int, float
 class Lowerable(Protocol):
   'Protocol for lowering to :class:`nutils.evaluable.Array`.'
 
-  def lower(self, *, transform_chains: Tuple[evaluable.TransformChain] = (), coordinates: Tuple[evaluable.Array] = ()) -> evaluable.Array:
+  def lower(self, *, transform_chains: Tuple[evaluable.TransformChain, ...] = (), coordinates: Optional[Tuple[evaluable.Array, ...]] = ()) -> evaluable.Array:
     '''Lower this object to a :class:`nutils.evaluable.Array`.
 
     Parameters
@@ -814,7 +814,7 @@ def levicivita(__n: int, dtype: DType = float) -> Array:
   :class:`Array`
   '''
 
-  return _Constant(numeric.levicivita(__n))
+  return _Constant(numeric.levicivita(__n, dtype=dtype))
 
 # ARITHMETIC
 
@@ -928,7 +928,7 @@ def power(__base: IntoArray, __exponent: IntoArray) -> Array:
   :class:`Array`
   '''
 
-  return _Wrapper.broadcasted_arrays(evaluable.power, __base, __exponent, min_dtype=float)
+  return _Wrapper.broadcasted_arrays(evaluable.Power, __base, __exponent, min_dtype=float)
 
 def sqrt(__arg: IntoArray) -> Array:
   '''Return the square root of the argument, elementwise.
