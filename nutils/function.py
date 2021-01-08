@@ -27,11 +27,12 @@ else:
 from typing import Tuple, Union, Type, Callable, Sequence, Any, Optional, Iterator, Dict, Mapping, overload, List, Set
 from . import evaluable, numeric, util, expression, types, warnings
 from .transformseq import Transforms
+from .types import dtypes
 import builtins, numpy, re, types as builtin_types, itertools, functools, operator, abc, numbers
 
+DType = Type[Union[bool, int, float]]
 IntoArray = Union['Array', numpy.ndarray, bool, int, float]
 Shape = Sequence[Union[int, 'Array']]
-DType = Type[Union[bool, int, float]]
 _dtypes = bool, int, float
 
 class Lowerable(Protocol):
@@ -103,10 +104,12 @@ class Array(Lowerable, metaclass=_ArrayMeta):
     elif numeric.isnumber(value) or numeric.isarray(value):
       value = _Constant(value)
     elif isinstance(value, (list, tuple)):
-      value = stack(value, axis=0)
+      value = stack(value, axis=0) if len(value) > 0 else _Constant([], int)
     else:
       raise ValueError('cannot convert {}.{} to Array'.format(type(value).__module__, type(value).__qualname__))
-    if dtype is not None and _dtypes.index(value.dtype) > _dtypes.index(dtype):
+    if dtype is not None and not dtypes.allowed(dtype):
+      raise ValueError('unsupported dtype `{}`'.format(dtype))
+    if dtype is not None and not numpy.can_cast(value.dtype, dtype):
       raise ValueError('expected an array with dtype `{}` but got `{}`'.format(dtype.__name__, value.dtype.__name__))
     if ndim is not None and value.ndim != ndim:
       raise ValueError('expected an array with dimension `{}` but got `{}`'.format(ndim, value.ndim))
@@ -456,7 +459,7 @@ class _Wrapper(Array):
   def broadcasted_arrays(cls, lower: Callable[..., evaluable.Array], *args: IntoArray, min_dtype: Optional[DType] = None, force_dtype: Optional[DType] = None) -> '_Wrapper':
     broadcasted, shape, dtype = _broadcast(*args)
     assert not min_dtype or not force_dtype
-    if min_dtype and (_dtypes.index(dtype) < _dtypes.index(min_dtype)):
+    if min_dtype and numpy.can_cast(dtype, min_dtype):
       dtype = min_dtype
     if force_dtype:
       dtype = force_dtype
@@ -494,9 +497,9 @@ class _Ones(Array):
 
 class _Constant(Array):
 
-  def __init__(self, value: Any) -> None:
-    self._value = types.frozenarray(value)
-    super().__init__(self._value.shape, self._value.dtype)
+  def __init__(self, value: Any, dtype=None) -> None:
+    self._value = types.frozenarray(value, dtype)
+    super().__init__(self._value.shape, dtype=types.asdtype(self._value.dtype))
 
   def __getnewargs__(self):
     return self._value,
@@ -731,7 +734,7 @@ def _broadcast(*args_: IntoArray) -> Tuple[Tuple[Array, ...], Shape, DType]:
         arg = repeat(arg, n, i)
     arg = _prepend_axes(arg, shape[:ndim-arg.ndim])
     broadcasted.append(arg)
-  return tuple(broadcasted), shape, evaluable._jointdtype(*(arg.dtype for arg in args))
+  return tuple(broadcasted), shape, dtypes.join(arg.dtype for arg in args)
 
 # CONSTRUCTORS
 

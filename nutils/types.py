@@ -1153,16 +1153,9 @@ class frozenarray(collections.abc.Sequence, metaclass=_frozenarraymeta):
 
   def __new__(cls, base, dtype=None, copy=True):
     isstrict = dtype in (strictint, strictfloat)
-    if dtype is None:
-      pass
-    elif dtype == bool:
-      dtype = bool
-    elif dtype in (int, strictint):
-      dtype = int
-    elif dtype in (float, strictfloat):
-      dtype = float
-    elif dtype == complex:
-      dtype = complex
+    if dtypes.can_cast(dtype): pass
+    elif dtype in (strictint, strictfloat):
+      dtype = {strictint: int, strictfloat: float}[dtype]
     else:
       raise ValueError('unsupported dtype: {!r}'.format(dtype))
     if isinstance(base, frozenarray):
@@ -1175,7 +1168,7 @@ class frozenarray(collections.abc.Sequence, metaclass=_frozenarraymeta):
         if base.size == 0:
           base = base.astype(dtype)
         copy = False
-      if base.dtype == complex or base.dtype == float and dtype == int:
+      if not numpy.can_cast(dtypes.cast(base.dtype), dtype):
         raise ValueError('downcasting {!r} to {!r} is forbidden'.format(base.dtype, dtype))
     self = object.__new__(cls)
     self.__base = numpy.array(base, dtype=dtype, copy=copy)
@@ -1385,5 +1378,30 @@ class _deprecation_wrapper:
   __call__ = create
 unit = _deprecation_wrapper()
 del _deprecation_wrapper
+
+class dtypes:
+  _dtypes = bool, int, float, complex
+  allowed = classmethod(lambda cls, arg: any(arg is d for d in cls._dtypes))
+
+  @staticmethod
+  def can_cast(arg):
+    try:
+      return numpy.issubdtype(arg, numpy.number) or numpy.issubdtype(arg, numpy.bool_)
+    except:
+      return False
+
+  @classmethod
+  def cast(cls, arg):
+    assert cls.can_cast(arg), 'cannot cast {} to supported dtype'.format(arg)
+    return {'b': bool, 'i': int, 'u': int, 'f': float, 'c': complex}[numpy.dtype(arg).kind]
+
+  @classmethod
+  def join(cls, dtypes):
+    dtypes = tuple(dtypes)
+    assert len(dtypes) > 0, 'empty sequence of dtypes'
+    assert all(cls.allowed(d) for d in dtypes), 'contain unsupported dtype: {}'.format(dtypes)
+    return cls._dtypes[max(cls._dtypes.index(dtype) for dtype in dtypes)]
+
+asdtype = dtypes.cast
 
 # vim:sw=2:sts=2:et

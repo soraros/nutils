@@ -51,6 +51,7 @@ else:
 from . import util, types, numeric, cache, transform, expression, warnings, parallel, sparse
 from ._graph import Node, RegularNode, DuplicatedLeafNode, InvisibleNode, Subgraph
 import numpy, sys, itertools, functools, operator, inspect, numbers, builtins, re, types as builtin_types, abc, collections.abc, math, treelog as log, weakref, time, contextlib, subprocess
+from .types import dtypes
 _ = numpy.newaxis
 
 isevaluable = lambda arg: isinstance(arg, Evaluable)
@@ -62,8 +63,6 @@ def strictevaluable(value):
 
 def simplified(value):
   return strictevaluable(value).simplified
-
-asdtype = lambda arg: arg if any(arg is dtype for dtype in (bool, int, float, complex)) else {'f': float, 'i': int, 'b': bool, 'c': complex}[numpy.dtype(arg).kind]
 
 def asarray(arg):
   if hasattr(arg, 'as_evaluable_array'):
@@ -509,7 +508,7 @@ class SparseArray(Evaluable):
   'sparse array'
 
   @types.apply_annotations
-  def __init__(self, chunks:types.tuple[types.tuple[asarray]], shape:types.tuple[asarray], dtype:asdtype):
+  def __init__(self, chunks:types.tuple[types.tuple[asarray]], shape:types.tuple[asarray], dtype:types.asdtype):
     self._shape = shape
     self._dtype = dtype
     super().__init__(args=[Tuple(map(asarray, shape)), *map(Tuple, chunks)])
@@ -794,7 +793,7 @@ class Array(Evaluable, metaclass=_ArrayMeta):
   __array_priority__ = 1. # http://stackoverflow.com/questions/7042496/numpy-coercion-problem-for-left-sided-binary-operator/7057530#7057530
 
   @types.apply_annotations
-  def __init__(self, args:types.tuple[strictevaluable], shape:types.tuple[as_axis_property], dtype:asdtype):
+  def __init__(self, args:types.tuple[strictevaluable], shape:types.tuple[as_axis_property], dtype:types.asdtype):
     self._axes = shape
     self.dtype = dtype
     super().__init__(args=args)
@@ -1579,7 +1578,7 @@ class Multiply(Array):
        else axis1 if isinstance(axis1, Sparse)
        else axis2 if isinstance(axis2, Sparse)
        else Axis(axis1.length) for axis1, axis2 in zip(func1._axes, func2._axes)]
-    super().__init__(args=self.funcs, shape=axes, dtype=_jointdtype(func1.dtype,func2.dtype))
+    super().__init__(args=self.funcs, shape=axes, dtype=dtypes.join([func1.dtype, func2.dtype]))
 
   def _simplified(self):
     func1, func2 = self.funcs
@@ -1746,7 +1745,7 @@ class Add(Array):
       mask = func1._axes[i].mask | func2._axes[i].mask # axis positions that are certainly filled
       if not mask.all():
         axes[i] = Sparse(axes[i].length, mask)
-    super().__init__(args=self.funcs, shape=axes, dtype=_jointdtype(func1.dtype,func2.dtype))
+    super().__init__(args=self.funcs, shape=axes, dtype=dtypes.join([func1.dtype, func2.dtype]))
 
   def _simplified(self):
     func1, func2 = self.funcs
@@ -1826,7 +1825,8 @@ class Einsum(Array):
     self.out_idx = out_idx
     self._einsumfmt = ','.join(''.join(chr(97+i) for i in idx) for idx in args_idx) + '->' + ''.join(chr(97+i) for i in out_idx)
     self._has_summed_axes = len(lengths) > len(out_idx)
-    super().__init__(args=self.args, shape=shape, dtype=_jointdtype(*(arg.dtype for arg in args)))
+    super().__init__(args=self.args, shape=shape, dtype=dtypes.join(arg.dtype for arg in args))
+
 
   def evalf(self, *args):
     if self._has_summed_axes:
@@ -2312,7 +2312,7 @@ class Elemwise(Array):
   __slots__ = 'data',
 
   @types.apply_annotations
-  def __init__(self, data:types.tuple[types.frozenarray], index:asarray, dtype:asdtype):
+  def __init__(self, data:types.tuple[types.frozenarray], index:asarray, dtype:types.asdtype):
     self.data = data
     shape = get([d.shape for d in data], 0, index)
     super().__init__(args=[index], shape=shape, dtype=dtype)
@@ -2330,7 +2330,7 @@ class ElemwiseFromCallable(Array):
   __slots__ = '_func', '_index'
 
   @types.apply_annotations
-  def __init__(self, func, index:asarray, shape:asshape, dtype:asdtype):
+  def __init__(self, func, index:asarray, shape:asshape, dtype:types.asdtype):
     self._func = func
     self._index = index
     super().__init__(args=[index], shape=shape, dtype=dtype)
@@ -2368,7 +2368,7 @@ class ArrayFromTuple(Array):
   __slots__ = 'arrays', 'index'
 
   @types.apply_annotations
-  def __init__(self, arrays:strictevaluable, index:types.strictint, shape:asshape, dtype:asdtype):
+  def __init__(self, arrays:strictevaluable, index:types.strictint, shape:asshape, dtype:types.asdtype):
     self.arrays = arrays
     self.index = index
     super().__init__(args=[arrays], shape=shape, dtype=dtype)
@@ -2393,7 +2393,7 @@ class Zeros(Array):
   __cache__ = '_assparse'
 
   @types.apply_annotations
-  def __init__(self, shape:asshape, dtype:asdtype):
+  def __init__(self, shape:asshape, dtype:types.asdtype):
     super().__init__(args=[asarray(sh) for sh in shape], shape=map(Sparse, shape), dtype=dtype)
 
   def evalf(self, *shape):
@@ -3182,7 +3182,7 @@ class Choose(Array):
   def __init__(self, index:asarray, choices:types.tuple[asarray]):
     if index.dtype != int:
       raise Exception('index must be integer valued')
-    dtype = _jointdtype(*[choice.dtype for choice in choices])
+    dtype = dtypes.join(choice.dtype for choice in choices)
     shape = index.shape
     if not all(choice.shape == shape for choice in choices):
       raise Exception('shapes vary')
@@ -3529,15 +3529,6 @@ class LoopConcatenateCombined(Evaluable):
 
 _ascending = lambda arg: numpy.greater(numpy.diff(arg), 0).all()
 _normdims = lambda ndim, shapes: tuple(numeric.normdim(ndim,sh) for sh in shapes)
-
-def _jointdtype(*dtypes):
-  'determine joint dtype'
-
-  type_order = bool, int, float, complex
-  kind_order = 'bifc'
-  itype = max(kind_order.index(dtype.kind) if isinstance(dtype,numpy.dtype)
-           else type_order.index(dtype) for dtype in dtypes)
-  return type_order[itype]
 
 def _gatherblocks(blocks):
   return tuple((ind, util.sum(funcs)) for ind, funcs in util.gather(blocks))
