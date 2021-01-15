@@ -107,11 +107,11 @@ jobs:
       - name: Test
         env:
           LD_LIBRARY_PATH: ${{ steps.get-lib-dir.outputs.libdir }}
+          NUTILS_DEBUG: all
         run: |
           mkdir testenv
           cp -r examples docs tests .coveragerc testenv
           cd testenv
-          export NUTILS_DEBUG='all'
           python -um nutils.debug_flags
           python -um coverage run -m unittest -bq
       - name: Post-process coverage
@@ -170,6 +170,7 @@ jobs:
       - name: Run unit tests
         env:
           _image: ${{ steps.build.outputs.id }}
+          NUTILS_DEBUG: all
         run: podman run --pull=never --rm -v "$PWD/tests:/app/tests:ro" -v "$PWD/examples:/app/examples:ro" "$_image" -m unittest -bq
       - name: Push image to container registry
         if: ${{ github.event_name == 'push' }}
