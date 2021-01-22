@@ -2081,7 +2081,7 @@ class Power(Array):
     # self` / self = power` * ln func + power * func` / func
     # self` = power` * ln func * self + power * func` * func**(power-1)
     return (self.power * power(self.func, self.power - 1))[ext] * derivative(self.func, var, seen) \
-         + (ln(self.func) * self)[ext] * derivative(self.power, var, seen)
+         + (log(self.func) * self)[ext] * derivative(self.power, var, seen)
 
   def _power(self, n):
     func = self.func
@@ -3693,17 +3693,11 @@ def arctan(x):
 def exp(x):
   return Exp(x)
 
-def ln(x):
+def log(x):
   return Log(x)
 
 def mod(arg1, arg2):
   return Mod(*_numpy_align(arg1, arg2))
-
-def log2(arg):
-  return ln(arg) / ln(2)
-
-def log10(arg):
-  return ln(arg) / ln(10)
 
 def sqrt(arg):
   return power(arg, .5)
@@ -3724,7 +3718,7 @@ def tanh(arg):
   return 1 - 2. / (exp(2*arg) + 1)
 
 def arctanh(arg):
-  return .5 * (ln(1+arg) - ln(1-arg))
+  return .5 * (log(1+arg) - log(1-arg))
 
 def divide(arg1, arg2):
   return multiply(arg1, reciprocal(arg2))
