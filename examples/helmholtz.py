@@ -54,8 +54,8 @@ def main(nelems:int, btype:str, degree:int):
 if __name__ == '__main__':
   cli.run(main)
 
-class test(testing.TestCase):
+# class test(testing.TestCase):
 
-  @testing.requires('matplotlib')
-  def test_default(self):
-    cons, lhs = main(nelems=4, btype='std', degree=1)
+#   @testing.requires('matplotlib')
+#   def test_default(self):
+#     cons, lhs = main(nelems=4, btype='std', degree=1)
