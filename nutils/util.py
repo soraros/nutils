@@ -46,16 +46,6 @@ def pairwise(items, *, periodic=False):
   i, j = itertools.tee(items)
   return zip(i, itertools.islice(itertools.cycle(j) if periodic else j, 1))
 
-def allequal(seq1, seq2):
-  seq1 = iter(seq1)
-  seq2 = iter(seq2)
-  for item1, item2 in zip(seq1, seq2):
-    if item1 != item2:
-      return False
-  if list(seq1) or list(seq2):
-    return False
-  return True
-
 class NanVec(numpy.ndarray):
   'nan-initialized vector'
 
@@ -185,7 +175,7 @@ class tri_interpolator:
   triangulation routines. Unlike matplotlib's own ``LinearTriInterpolator``,
   the ``tri_interpolator`` allows for interpolation of multi-dimensional
   arrays, as well as repeated interpolations of different vertex values.
-  
+
   The arguments are identical to :func:`tri_merge`.
 
   After instantiation of the interpolator object, interpolation coordinates are
