@@ -149,7 +149,7 @@ def vtk(name, cells, points, kwargs=...):
     raise Exception('invalid point dimension: {}'.format(ndims))
 
   points = vtkarray(points)
-  gathered = util.gather((len(array), (name, vtkarray(array))) for name, array in kwargs.items())
+  gathered = util.gather((len(array), (name, vtkarray(array))) for name, array in kwargs.items()).items()
 
   for n, items in gathered:
     if n != npoints and n != ncells:

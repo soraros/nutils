@@ -373,7 +373,7 @@ def parsegmsh(mshdata):
   # dimensions and gathered, after which cells are concatenated under the
   # assumption that there is only one simplex type per dimension.
   nodes = {('ver','lin','tri','tet').index(typename[:3]): numpy.concatenate(datas, axis=0)
-    for typename, datas in util.gather((cells.type, cells.data) for cells in msh.cells)}
+    for typename, datas in util.gather((cells.type, cells.data) for cells in msh.cells).items()}
 
   # Identities is a 2d [master, slave] int-aray that pairs matching nodes on
   # periodic walls. For the topological connectivity, all slaves in the nodes

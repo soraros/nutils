@@ -346,7 +346,7 @@ class Evaluable(types.Singleton):
       node = self._node({}, None, stats)
       maxtime = builtins.max(n.metadata[1].time for n in node.walk(set()))
       tottime = builtins.sum(n.metadata[1].time for n in node.walk(set()))
-      aggstats = tuple((key, builtins.sum(v.time for v in values), builtins.sum(v.ncalls for v in values)) for key, values in util.gather(n.metadata for n in node.walk(set())))
+      aggstats = tuple((key, builtins.sum(v.time for v in values), builtins.sum(v.ncalls for v in values)) for key, values in util.gather(n.metadata for n in node.walk(set())).items())
       fill_color = (lambda node: '0,{:.2f},1'.format(node.metadata[1].time/maxtime)) if maxtime else None
       node.export_graphviz(fill_color=fill_color, dot_path=graphviz)
       log.info('total time: {:.0f}ms\n'.format(tottime/1e6) + '\n'.join('{:4.0f} {} ({} calls, avg {:.3f} per call)'.format(t / 1e6, k, n, t / (1e6*n))
@@ -3564,10 +3564,10 @@ def _jointdtype(*dtypes):
   return type_order[itype]
 
 def _gatherblocks(blocks):
-  return tuple((ind, util.sum(funcs)) for ind, funcs in util.gather(blocks))
+  return tuple((ind, util.sum(funcs)) for ind, funcs in util.gather(blocks).items())
 
 def _gathersparsechunks(chunks):
-  return tuple((*ind, util.sum(funcs)) for ind, funcs in util.gather((tuple(ind), func) for *ind, func in chunks))
+  return tuple((*ind, util.sum(funcs)) for ind, funcs in util.gather((tuple(ind), func) for *ind, func in chunks).items())
 
 def _numpy_align(*arrays):
   '''reshape arrays according to Numpy's broadcast conventions'''

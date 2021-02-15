@@ -37,16 +37,10 @@ def cumsum(seq):
     offset += i
 
 def gather(items):
-  gathered = []
   d = {}
   for key, value in items:
-    try:
-      values = d[key]
-    except KeyError:
-      d[key] = values = []
-      gathered.append((key, values))
-    values.append(value)
-  return gathered
+    d.setdefault(key, []).append(value)
+  return d
 
 def pairwise(items, *, periodic=False):
   items = iter(items)

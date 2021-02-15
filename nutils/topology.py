@@ -1383,7 +1383,7 @@ class UnionTopology(Topology):
 
     references = []
     selections = [[] for topo in topos]
-    for trans, indices in util.gather((trans, (itopo, itrans)) for itopo, topo in enumerate(self._topos) for itrans, trans in enumerate(topo.transforms)):
+    for trans, indices in util.gather((trans, (itopo, itrans)) for itopo, topo in enumerate(self._topos) for itrans, trans in enumerate(topo.transforms)).items():
       itopo0, itrans0 = indices[0]
       selections[itopo0].append(itrans0)
       if len(indices) == 1:
