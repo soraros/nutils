@@ -23,7 +23,7 @@ The util module provides a collection of general purpose methods.
 """
 
 from . import numeric
-import sys, os, numpy, collections.abc, inspect, functools, operator, numbers, pathlib, ctypes, io, contextlib
+import sys, os, numpy, collections.abc, inspect, itertools, functools, operator, numbers, pathlib, ctypes, io, contextlib
 
 supports_outdirfd = os.open in os.supports_dir_fd and os.listdir in os.supports_fd
 
@@ -43,16 +43,8 @@ def gather(items):
   return d
 
 def pairwise(items, *, periodic=False):
-  items = iter(items)
-  try:
-    first = a = next(items)
-  except StopIteration:
-    return
-  for b in items:
-    yield a, b
-    a = b
-  if periodic:
-    yield a, first
+  i, j = itertools.tee(items)
+  return zip(i, itertools.islice(itertools.cycle(j) if periodic else j, 1))
 
 def allequal(seq1, seq2):
   seq1 = iter(seq1)
