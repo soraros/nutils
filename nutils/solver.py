@@ -123,24 +123,24 @@ class withsolve(iterable):
 
   def solve(self, tol=0., maxiter=float('inf')):
     '''execute nonlinear solver, return lhs
-  
+
     Iterates over nonlinear solver until tolerance is reached. Example::
-  
+
         lhs = newton(target, residual).solve(tol=1e-5)
-  
+
     Parameters
     ----------
     tol : :class:`float`
         Target residual norm
     maxiter : :class:`int`
         Maximum number of iterations
-  
+
     Returns
     -------
     :class:`numpy.ndarray`
         Coefficient vector that corresponds to a smaller than ``tol`` residual.
     '''
-  
+
     lhs, info = self.solve_withinfo(tol=tol, maxiter=maxiter)
     return lhs
 
@@ -153,7 +153,7 @@ class withsolve(iterable):
     corresponding info object which holds information about the final residual
     norm and other generator-dependent information.
     '''
-  
+
     with log.iter.wrap(_progress(self.__class__.__name__, tol), self) as items:
       i = 0
       for lhs, info in items:
@@ -349,7 +349,7 @@ def solve_linear(target, residual:integraltuple, *, constrain:arrayordict=None, 
   jacobian = _derivative(residual, target)
   if not set(target).isdisjoint(_argobjs(jacobian)):
     raise SolverError('problem is not linear')
-  lhs, vlhs = _redict(lhs0, target)
+  lhs, vlhs = _redict(lhs0, target, dtype=residual[0].dtype)
   mask, vmask = _invert(constrain, target)
   res, jac = _integrate_blocks(residual, jacobian, arguments=lhs, mask=mask)
   vlhs[vmask] -= jac.solve(res, **solveargs)
@@ -805,7 +805,7 @@ def optimize(target, functional:evaluable.asarray, *, tol:types.strictfloat=0., 
   jacobian = _derivative(residual, target)
   lhs0, constrain = _parse_lhs_cons(lhs0, constrain, target, argobjs, arguments)
   mask, vmask = _invert(constrain, target)
-  lhs, vlhs = _redict(lhs0, target)
+  lhs, vlhs = _redict(lhs0, target, dtype=functional.dtype)
   val, res, jac = _integrate_blocks(functional, residual, jacobian, arguments=lhs, mask=mask)
   if droptol is not None:
     supp = jac.rowsupp(droptol)
@@ -877,7 +877,7 @@ def _parse_lhs_cons(lhs0, constrain, targets, argobjs, arguments):
       raise SolverError('target does not occur in functional: {!r}'.format(target))
     shape = argobjs[target].shape
     if target not in arguments:
-      arguments[target] = numpy.zeros(shape)
+      arguments[target] = numpy.zeros(shape, dtype=argobjs[target].dtype)
     elif arguments[target].shape != shape:
       raise SolverError('invalid argument shape for {}: {} != {}'.format(target, arguments[target].shape, shape))
     if target not in constrain:
@@ -908,10 +908,10 @@ def _progress(name, tol):
   while True:
     lhs, info = yield (name + ' {:.0f}%').format(100 * numpy.log(resnorm0/max(info.resnorm,tol)) / numpy.log(resnorm0/tol) if tol else 0 if info.resnorm else 100)
 
-def _redict(lhs, targets):
+def _redict(lhs, targets, dtype=float):
   '''copy argument dictionary referencing a newly allocated contiguous array'''
 
-  vlhs = numpy.empty(sum(lhs[target].size for target in targets))
+  vlhs = numpy.empty(sum(lhs[target].size for target in targets), dtype=dtype)
   lhs = lhs.copy()
   offset = 0
   for target in targets:

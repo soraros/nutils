@@ -2112,12 +2112,12 @@ class Pointwise(Array):
 
   @types.apply_annotations
   def __init__(self, *args:asarrays):
-    retval = self.evalf(*[numpy.ones((), dtype=arg.dtype) for arg in args])
+    dtype = self.evalf(*[numpy.ones((), dtype=arg.dtype) for arg in args]).dtype
     shapes = set(arg.shape for arg in args)
     assert len(shapes) == 1, 'pointwise arguments have inconsistent shapes'
     shape = tuple(axes[0] if len(set(axes)) == 1 and not isinstance(axes[0], Sparse) else Axis(axes[0].length) for axes in zip(*(arg._axes for arg in args)))
     self.args = args
-    super().__init__(args=args, shape=shape, dtype=retval.dtype)
+    super().__init__(args=args, shape=shape, dtype=dtype)
 
   @classmethod
   def outer(cls, *args):
@@ -2184,6 +2184,25 @@ class FloorDivide(Pointwise):
 class Absolute(Pointwise):
   __slots__ = ()
   evalf = numpy.absolute
+
+class Conj(Pointwise):
+  __slots__ = ()
+  evalf = numpy.conj
+  # deriv = lambda x: x,
+
+class Re(Pointwise):
+  __slots__ = ()
+  evalf = numpy.real
+
+def real(arg):
+  return Re(arg)
+
+class Im(Pointwise):
+  __slots__ = ()
+  evalf = numpy.imag
+
+def imag(arg):
+  return Im(arg)
 
 class Cos(Pointwise):
   'Cosine, element-wise.'
@@ -2866,8 +2885,11 @@ class Argument(DerivativeTargetBase):
       raise ValueError('argument {!r} missing'.format(self._name))
     else:
       value = numpy.asarray(value)
-      assert value.shape == self.shape, 'invalid argument shape: got {}, expected {}'.format(value.shape, self.shape)
-      value = value.astype(self.dtype, casting='safe', copy=False)
+      assert value.shape == self.shape
+      try:
+        value = value.astype(self.dtype, casting='safe', copy=False)
+      except TypeError:
+        value = value.astype(complex, copy=True)
       return value
 
   def _derivative(self, var, seen):
@@ -3510,6 +3532,7 @@ class LoopConcatenateCombined(Evaluable):
         values.append(numpy.array(index))
         values.extend(op.evalf(*[values[i] for i in indices]) for op, indices in self._serialized)
         for result, result_id, start_id, stop_id in zip(results, self._result_indices, self._start_indices, self._stop_indices):
+          result = result.astype(dtype=values[result_id].dtype, copy=False)
           result[...,int(values[start_id]):int(values[stop_id])] = values[result_id]
     return tuple(results)
 
@@ -3703,7 +3726,7 @@ def arctan2(arg1, arg2):
   return ArcTan2(*_numpy_align(arg1, arg2))
 
 def abs(arg):
-  return arg * sign(arg)
+  return arg * sign(arg) if arg.dtype is not complex else Absolute(arg)
 
 def sinh(arg):
   return .5 * (exp(arg) - exp(-arg))

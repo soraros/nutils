@@ -29,10 +29,10 @@ from . import evaluable, numeric, util, expression, types, warnings, debug_flags
 from .transformseq import Transforms
 import builtins, numpy, re, types as builtin_types, itertools, functools, operator, abc, numbers
 
-IntoArray = Union['Array', numpy.ndarray, bool, int, float]
+IntoArray = Union['Array', numpy.ndarray, bool, int, float, complex]
 Shape = Sequence[Union[int, 'Array']]
-DType = Type[Union[bool, int, float]]
-_dtypes = bool, int, float
+DType = Type[Union[bool, int, float, complex]]
+_dtypes = bool, int, float, complex
 
 class Lowerable(Protocol):
   'Protocol for lowering to :class:`nutils.evaluable.Array`.'
@@ -495,7 +495,7 @@ class _Constant(Array):
 
   def __init__(self, value: Any) -> None:
     self._value = types.arraydata(value)
-    super().__init__(self._value.shape, self._value.dtype)
+    super().__init__(self._value.shape, dtype=evaluable.asdtype(self._value.dtype))
 
   def __getnewargs__(self):
     return self._value,
@@ -813,7 +813,7 @@ def levicivita(__n: int, dtype: DType = float) -> Array:
   :class:`Array`
   '''
 
-  return _Constant(numeric.levicivita(__n))
+  return _Constant(numeric.levicivita(__n, dtype=dtype))
 
 # ARITHMETIC
 
@@ -927,7 +927,7 @@ def power(__base: IntoArray, __exponent: IntoArray) -> Array:
   :class:`Array`
   '''
 
-  return _Wrapper.broadcasted_arrays(evaluable.power, __base, __exponent, min_dtype=float)
+  return _Wrapper.broadcasted_arrays(evaluable.Power, __base, __exponent, min_dtype=float)
 
 def sqrt(__arg: IntoArray) -> Array:
   '''Return the square root of the argument, elementwise.
@@ -956,7 +956,16 @@ def abs(__arg: IntoArray) -> Array:
   '''
 
   arg = Array.cast(__arg)
-  return arg * sign(arg)
+  return arg * sign(arg) if arg.dtype is not complex else _Wrapper.broadcasted_arrays(evaluable.Absolute, __arg, min_dtype=complex)
+
+def conj(__arg: IntoArray) -> Array:
+  return _Wrapper.broadcasted_arrays(evaluable.Conj, __arg, min_dtype=complex)
+
+def imag(__arg: IntoArray) -> Array:
+  return _Wrapper.broadcasted_arrays(evaluable.Im, __arg, min_dtype=complex)
+
+def real(__arg: IntoArray) -> Array:
+  return _Wrapper.broadcasted_arrays(evaluable.Re, __arg, min_dtype=complex)
 
 def sign(__arg: IntoArray) -> Array:
   '''Return the sign of the argument, elementwise.
@@ -3304,9 +3313,10 @@ class Namespace:
   _default_functions = dict(
     opposite=opposite, sin=sin, cos=cos, tan=tan, sinh=sinh, cosh=cosh,
     tanh=tanh, arcsin=arcsin, arccos=arccos, arctan=arctan, arctan2=_arctan2_expr, arctanh=arctanh,
-    exp=exp, abs=abs, ln=ln, log=ln, log2=log2, log10=log10, sqrt=sqrt,
+    exp=exp, abs=abs, ln=log, log=log, log2=log2, log10=log10, sqrt=sqrt,
     sign=sign, d=d, surfgrad=surfgrad, n=normal,
     sum=_sum_expr, norm2=_norm2_expr, J=_J_expr,
+    conj=conj, imag=imag, real=real
   )
 
   def __init__(self, *, default_geometry_name: str = 'x', fallback_length: Optional[int] = None, functions: Optional[Mapping[str, Callable]] = None, **kwargs: Any) -> None:
