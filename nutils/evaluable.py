@@ -682,7 +682,7 @@ def transpose(arg, trans=None):
   if trans is None:
     normtrans = range(arg.ndim-1, -1, -1)
   else:
-    normtrans = _normdims(arg.ndim, trans)
+    normtrans = numeric.normdims(arg.ndim, trans)
     assert sorted(normtrans) == list(range(arg.ndim))
   return Transpose(arg, normtrans)
 
@@ -1271,13 +1271,11 @@ class Transpose(Array):
   @classmethod
   @types.apply_annotations
   def _end(cls, array:asarray, axes, invert=False):
-    axes = [numeric.normdim(array.ndim, axis) for axis in axes]
+    axes = numeric.normdims(array.ndim, axes)
     if all(a == b for a, b in enumerate(axes, start=array.ndim-len(axes))):
       return array
     trans = [i for i in range(array.ndim) if i not in axes]
     trans.extend(axes)
-    if len(trans) != array.ndim:
-      raise Exception('duplicate axes')
     return cls(array, numpy.argsort(trans) if invert else trans)
 
   @classmethod
@@ -3555,7 +3553,6 @@ class LoopConcatenateCombined(Evaluable):
 # AUXILIARY FUNCTIONS (FOR INTERNAL USE)
 
 _ascending = lambda arg: numpy.greater(numpy.diff(arg), 0).all()
-_normdims = lambda ndim, shapes: tuple(numeric.normdim(ndim,sh) for sh in shapes)
 
 def _jointdtype(*dtypes):
   'determine joint dtype'

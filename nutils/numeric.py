@@ -22,6 +22,7 @@
 The numeric module provides methods that are lacking from the numpy module.
 """
 
+from typing import Tuple
 from . import types, warnings
 import numpy, numbers, builtins, collections.abc
 
@@ -60,15 +61,12 @@ def full(shape, fill_value, dtype):
   f.flags.writeable = False
   return f
 
-def normdim(ndim: int, n: int) -> int:
+def normdim(ndim: int, axis: int) -> int:
   'check bounds and make positive'
+  return numpy.core.multiarray.normalize_axis_index(axis, ndim)
 
-  assert isint(ndim) and ndim >= 0, 'ndim must be positive integer, got {}'.format(ndim)
-  if n < 0:
-    n += ndim
-  if n < 0 or n >= ndim:
-    raise IndexError('index out of bounds: {} not in [0,{})'.format(n, ndim))
-  return n
+def normdims(ndim: int, axis, allow_duplicate=False) -> Tuple[int]:
+  return numpy.core.numeric.normalize_axis_tuple(axis, ndim, allow_duplicate)
 
 def get(arr, axis, item):
   'take single item from array axis'
@@ -87,7 +85,7 @@ def contract(A, B, axis=-1):
   m = _abc[maxdim-A.ndim:maxdim]
   n = _abc[maxdim-B.ndim:maxdim]
 
-  axes = sorted([normdim(maxdim,axis)] if isinstance(axis,int) else [normdim(maxdim,ax) for ax in axis])
+  axes = sorted(normdims(maxdim,axis))
   o = _abc[:maxdim-len(axes)] if axes == range(maxdim-len(axes), maxdim) \
     else ''.join(_abc[a+1:b] for a, b in zip([-1]+axes, axes+[maxdim]) if a+1 != b)
 

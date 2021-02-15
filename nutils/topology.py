@@ -1214,7 +1214,7 @@ class StructuredTopology(Topology):
     for idofs, ndofs in zip(removedofs, dofshape):
       mask = mask[...,_].repeat(ndofs, axis=-1)
       if idofs:
-        mask[..., [numeric.normdim(ndofs,idof) for idof in idofs]] = False
+        mask[..., numeric.normdims(ndofs,idofs)] = False
     assert mask.shape == tuple(dofshape)
     return func[mask.ravel()]
 

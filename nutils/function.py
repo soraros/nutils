@@ -551,13 +551,11 @@ class _Transpose(Array):
 
   @classmethod
   def _end(cls, array: Array, axes: Tuple[int, ...], invert: bool = False) -> Array:
-    axes = tuple(numeric.normdim(array.ndim, axis) for axis in axes)
+    axes = numeric.normdims(array.ndim, axes)
     if all(a == b for a, b in enumerate(axes, start=array.ndim-len(axes))):
       return array
     trans = [i for i in range(array.ndim) if i not in axes]
     trans.extend(axes)
-    if len(trans) != array.ndim:
-      raise Exception('duplicate axes')
     return cls(array, tuple(numpy.argsort(trans) if invert else trans))
 
   @classmethod
