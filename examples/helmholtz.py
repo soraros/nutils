@@ -12,7 +12,7 @@
 from nutils import mesh, function, solver, export, cli, testing
 import numpy, treelog
 
-def main(nelems: int, btype: str, degree: int, k: int = 3, f: str = 'sin(x_0) - cos(x_0)'):
+def main(nelems: int, btype: str, degree: int, k: int, f: str):
   '''
   Helmholtz problem on a unit interval.
 
@@ -27,7 +27,7 @@ def main(nelems: int, btype: str, degree: int, k: int = 3, f: str = 'sin(x_0) - 
        Polynomial degree.
      k [3]
        Wave number.
-     f ['sin(x_0) - cos(x_0)']
+     f [sin(x_0) - cos(x_0)]
        Inhomogeneous function in u'' + k^2 u = -f, a a function of 'x_0'.
   '''
 
@@ -65,7 +65,7 @@ def main(nelems: int, btype: str, degree: int, k: int = 3, f: str = 'sin(x_0) - 
     I sin(1) sin(k) sin(k x_0) + k sin(1) sin(k) sin(k x_0))
   '''
 
-  err = domain.integral('(abs(u - sol)^2 J(x)' @ ns, degree=degree * 2).eval(lhs=lhs)**.5
+  err = domain.integral('abs(u - sol)^2 J(x)' @ ns, degree=degree * 2).eval(lhs=lhs)**.5
   treelog.user('L2 error: {:.2e}'.format(err))
 
   return cons, lhs, err
@@ -76,4 +76,6 @@ if __name__ == '__main__':
 class test(testing.TestCase):
   @testing.requires('matplotlib')
   def test_default(self):
-    cons, lhs, err = main(nelems=4, btype='std', degree=1)
+    cons, lhs, err = main(nelems=4, btype='std', degree=2, k=3, f='sin(x_0) - cos(x_0)')
+    with self.subTest('constraints'): self.assertAlmostEqual64(cons, '''
+      eNqrkmN+sEfhzF0xleRbDA0wKGeCYFuaIdjK5gj2aiT2VXMAJB0VAQ==''')

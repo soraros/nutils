@@ -84,7 +84,7 @@ class Pardiso:
     log.debug('peak memory use {:,d}k'.format(max(self.iparm[14], self.iparm[15]+self.iparm[16])))
 
   def __call__(self, rhs):
-    rhsflat = numpy.ascontiguousarray(rhs.reshape(rhs.shape[0], -1).T, dtype=numpy.float64)
+    rhsflat = numpy.ascontiguousarray(rhs.reshape(rhs.shape[0], -1).T, dtype=self.dtype)
     lhsflat = numpy.empty_like(rhsflat)
     self._phase(33, rhsflat.shape[0], rhsflat.ctypes, lhsflat.ctypes) # solve, iterative refinement
     return lhsflat.T.reshape(rhs.shape)
@@ -107,7 +107,8 @@ class MKLMatrix(Matrix):
 
   def __init__(self, data, rowptr, colidx, ncols):
     assert len(data) == len(colidx) == rowptr[-1]-1
-    self.data = numpy.ascontiguousarray(data, dtype=numpy.float64)
+    self.dtype = data.dtype
+    self.data = numpy.ascontiguousarray(data, dtype=data.dtype)
     self.rowptr = numpy.ascontiguousarray(rowptr, dtype=numpy.int32)
     self.colidx = numpy.ascontiguousarray(colidx, dtype=numpy.int32)
     super().__init__((len(rowptr)-1, ncols))
@@ -136,7 +137,7 @@ class MKLMatrix(Matrix):
     libmkl.mkl_dcsradd(*args)
     assert info.value == 0
     colidx = numpy.empty(rowptr[-1]-1, dtype=numpy.int32)
-    data = numpy.empty(rowptr[-1]-1, dtype=numpy.float64)
+    data = numpy.empty(rowptr[-1]-1, dtype=other.dtype)
     request.value = 2
     args[12:14] = data.ctypes, colidx.ctypes
     libmkl.mkl_dcsradd(*args)
@@ -200,7 +201,7 @@ class MKLMatrix(Matrix):
 
   def export(self, form):
     if form == 'dense':
-      dense = numpy.zeros(self.shape)
+      dense = numpy.zeros(self.shape, dtype=self.dtype)
       for row, i, j in zip(dense, self.rowptr[:-1]-1, self.rowptr[1:]-1):
         row[self.colidx[i:j]-1] = self.data[i:j]
       return dense
